@@ -1,0 +1,76 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'M2_HOME'     // same name as configured in Jenkins
+        jdk 'JAVA_HOME'       // same name as configured in Jenkins
+    }
+
+    environment {
+        GIT_REPO_URL = 'https://github.com/faroukrrr/DevopsPtoject.git'
+        SONARQUBE_SERVER = 'sq1'                    // matches Jenkins SonarQube name
+        SONARQUBE_TOKEN = credentials('frkrr')  // your SonarQube token ID
+        SONAR_PROJECT_KEY = 'admin'           // name in SonarQube dashboard
+    }
+
+    stages {
+        stage('Pull from Git') {
+            steps {
+                echo '📥 Cloning project from GitHub...'
+                git branch: 'master', url: "${GIT_REPO_URL}"
+            }
+        }
+
+        stage('Clean Project') {
+            steps {
+                echo '🧹 Cleaning project...'
+                sh 'mvn clean'
+            }
+        }
+
+        stage('Compile Project') {
+            steps {
+                echo '⚙️ Compiling project...'
+                sh 'mvn compile'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🔍 Running SonarQube analysis...'
+                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                    sh """
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                        -Dsonar.host.url=${env.SONAR_HOST_URL} \
+                        -Dsonar.login=${SONARQUBE_TOKEN}
+                    """
+                    echo "🔗 Results available at: ${env.SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
+                }
+            }
+        }
+
+        stage('Build JAR') {
+            steps {
+                echo '📦 Building JAR package...'
+                sh 'mvn package -DskipTests'
+            }
+        }
+
+        stage('Archive Artifact') {
+            steps {
+                echo '🗃️ Archiving JAR artifact...'
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ CI pipeline completed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed — check logs for errors.'
+        }
+    }
+}
