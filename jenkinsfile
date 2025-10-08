@@ -17,7 +17,7 @@
             stage('Pull from Git') {
                 steps {
                     echo '📥 Cloning project from GitHub...'
-                    git branch: 'master', url: "${GIT_REPO_URL}"
+                    git branch: 'main', url: "${GIT_REPO_URL}"
                 }
             }
 
